@@ -9,19 +9,19 @@ import (
 
 func (s *serverMart) getAPIUserBalance(c echo.Context) error {
 	get := c.Get("user")
-	points, err := s.db.ReadUserPoints(get.(string))
+	points, err := s.DB.ReadUserPoints(c.Request().Context(), get.(string))
 	if err != nil {
 		c.Response().WriteHeader(http.StatusInternalServerError)
 		return nil
 	}
 
-	allOrderJSON, err := json.Marshal(points)
+	allPointsJSON, err := json.Marshal(points)
 	if err != nil {
 		c.Response().WriteHeader(http.StatusInternalServerError)
 		return nil
 	}
-
+	c.Response().Header().Set("content-type", "application/json")
 	c.Response().WriteHeader(http.StatusOK)
-	c.Response().Write(allOrderJSON)
+	c.Response().Write(allPointsJSON)
 	return nil
 }

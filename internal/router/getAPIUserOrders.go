@@ -8,8 +8,9 @@ import (
 )
 
 func (s *serverMart) getAPIUserOrders(c echo.Context) error {
+
 	get := c.Get("user")
-	allOrder, err := s.db.ReadAllOrderAccrualUser(get.(string))
+	allOrder, err := s.DB.ReadAllOrderAccrualUser(c.Request().Context(), get.(string))
 	if err != nil {
 		c.Response().WriteHeader(http.StatusInternalServerError)
 		return nil
@@ -24,7 +25,7 @@ func (s *serverMart) getAPIUserOrders(c echo.Context) error {
 		c.Response().WriteHeader(http.StatusInternalServerError)
 		return nil
 	}
-
+	c.Response().Header().Set("content-type", "application/json")
 	c.Response().WriteHeader(http.StatusOK)
 	c.Response().Write(allOrderJSON)
 	return nil

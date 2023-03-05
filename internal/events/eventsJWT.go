@@ -9,7 +9,8 @@ import (
 
 const Authorization = "Authorization"
 const Bearer = "Bearer"
-const keyJWT = "pqla3zxjonfgwouhf"
+
+var keyJWT = []byte("pqla3zxjonfgwouhf")
 
 type ClaimsUser struct {
 	Login string `json:"Login"`
@@ -38,7 +39,7 @@ func DecodeJWT(headertoken string) (Claims *ClaimsUser, err error) {
 func EncodeJWT(login string) (token string, err error) {
 	userClaims := ClaimsUser{
 		StandardClaims: jwt.StandardClaims{
-			ExpiresAt: time.Now().Add(time.Minute * 1).Unix(),
+			ExpiresAt: time.Now().Add(time.Hour * 3000).Unix(),
 			IssuedAt:  time.Now().Unix(),
 		},
 		Login: login,

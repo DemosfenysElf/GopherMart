@@ -1,7 +1,9 @@
 package router
 
 import (
+	"context"
 	"flag"
+	"time"
 
 	"github.com/caarlos0/env"
 	"github.com/labstack/echo"
@@ -16,16 +18,16 @@ type Config struct {
 }
 
 type serverMart struct {
-	cfg  Config
-	serv *echo.Echo
-	db   events.DBI
+	Cfg  Config
+	Serv *echo.Echo
+	DB   events.DBI
 }
 
 func InitServer() *serverMart {
 	return &serverMart{}
 }
 
-func (s serverMart) Router() error {
+func (s *serverMart) Router() error {
 	if err := s.parseFlagCfg(); err != nil {
 		return err
 	}
@@ -39,47 +41,53 @@ func (s serverMart) Router() error {
 
 	e.Use(s.gzip)
 
-	e.POST("/api/user/registration", s.postAPIUserRegistration)
+	e.POST("/api/user/register", s.postAPIUserRegister)
 	e.POST("/api/user/login", s.postAPIUserLogin)
 
-	e.Use(s.mwUserAuthentication)
+	e.GET("/api/user/orders", s.getAPIUserOrders, s.mwUserAuthentication)           // Получение списка загруженных заказов
+	e.GET("/api/user/balance", s.getAPIUserBalance, s.mwUserAuthentication)         // Получение текущего баланса пользователя
+	e.GET("/api/user/withdrawals", s.getAPIUserWithdrawals, s.mwUserAuthentication) // Получение информации о выводе средств
 
-	e.GET("/api/user/orders", s.getAPIUserOrders)           // Получение списка загруженных заказов
-	e.GET("/api/user/balance", s.getAPIUserBalance)         // Получение текущего баланса пользователя
-	e.GET("/api/user/withdrawals", s.getAPIUserWithdrawals) // Получение информации о выводе средств
+	e.POST("/api/user/orders", s.postAPIUserOrders, s.mwUserAuthentication)                    // Загрузка номера заказа
+	e.POST("/api/user/balance/withdraw", s.postAPIUserBalanceWithdraw, s.mwUserAuthentication) // Запрос на списание средств
 
-	e.POST("/api/user/orders", s.postAPIUserOrders)                    // Загрузка номера заказа
-	e.POST("/api/user/balance/withdraw", s.postAPIUserBalanceWithdraw) // Запрос на списание средств
+	errStart := e.Start(s.Cfg.ServerAddress)
 
+	if errStart != nil {
+		return errStart
+	}
 	return nil
 }
 
 func (s *serverMart) parseFlagCfg() error {
-	errConfig := env.Parse(&s.cfg)
+	errConfig := env.Parse(&s.Cfg)
 	if errConfig != nil {
 		return errConfig
 	}
-	if s.cfg.ServerAddress == "" {
-		flag.StringVar(&s.cfg.ServerAddress, "a", "http://localhost:8080", "New RUN_ADDRESS")
+	if s.Cfg.ServerAddress == "" {
+		flag.StringVar(&s.Cfg.ServerAddress, "a", "localhost:8080", "New RUN_ADDRESS")
 	}
-	if s.cfg.BDAddress == "" {
-		flag.StringVar(&s.cfg.BDAddress, "d", "http://localhost:5432", "New DATABASE_URI")
+	if s.Cfg.BDAddress == "" {
+		flag.StringVar(&s.Cfg.BDAddress, "d", "postgres://postgres:0000@localhost:5432/postgres", "New DATABASE_URI")
 	}
-	if s.cfg.AccrualAddress == "" {
-		flag.StringVar(&s.cfg.AccrualAddress, "r", "http://localhost:5433", "New ACCRUAL_SYSTEM_ADDRESS")
+	if s.Cfg.AccrualAddress == "" {
+		flag.StringVar(&s.Cfg.AccrualAddress, "r", "", "New ACCRUAL_SYSTEM_ADDRESS")
 	}
 
 	flag.Parse()
 	return nil
 }
 
-func (s serverMart) connectDB() error {
+func (s *serverMart) connectDB() error {
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
 	var err error
-	if s.db, err = events.InitDB(); err != nil {
+	if s.DB, err = events.InitDB(); err != nil {
 		return err
 	}
-	if err = s.db.Connect(s.cfg.BDAddress); err != nil {
+	if err = s.DB.Connect(ctx, s.Cfg.BDAddress); err != nil {
 		return err
 	}
+
 	return nil
 }

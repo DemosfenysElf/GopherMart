@@ -9,9 +9,7 @@ import (
 	"github.com/labstack/echo"
 )
 
-func (s serverMart) gzip(next echo.HandlerFunc) echo.HandlerFunc {
-	fmt.Println("=> gzip run")
-
+func (s *serverMart) gzip(next echo.HandlerFunc) echo.HandlerFunc {
 	return func(c echo.Context) error {
 		if c.Request().Header.Get("Content-Encoding") != "gzip" {
 			return next(c)
